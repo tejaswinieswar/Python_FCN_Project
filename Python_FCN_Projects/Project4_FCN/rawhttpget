@@ -1,0 +1,12 @@
+#!/bin/bash
+if [ "$#" -gt 1 ]; then
+    echo "More number of arguments!! Please provide only one"
+
+elif [[ $1 == "" ]]
+then
+        echo "Number of arguments insufficient for executing the program"
+else
+
+        sudo python arp.py $1
+
+fi

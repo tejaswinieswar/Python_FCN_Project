@@ -1,0 +1,55 @@
+Project 4: Raw Sockets
+
+High Level Approach:
+1)	The requirement is to download the file associated with the URL passed to the program. The program is implemented using Python language . The program parses the URL and using the urlparse module and extracts the host and the path of the url.
+2)	The client creates raw sockets and initiates the TCP handshake program by sending the SYN packet to the server. Packets are formed by building the Ethernet header, IP header and the TCP header. Once the SYN ACK is received from the server the client completes the three way TCP handshake by sending ACK and then sends the GET http message by framing the HTTP headers.
+3)	The server sends the data packets and the client acks the packets correspondingly. The received packets are checked for their validity and if the packet is invalid, it is dropped.
+4) The headers are removed from the packet and the data is stored in dictionary. The dictionary is arranged in ascending order and later written to a file on disk. The filename is determined based on the way the URL ends.
+If URL ends with "/" then filename -> index.html
+If URL ends with filename such abc.html then filename-> abc.html
+
+Features Implemented:
+1)TCP:
+> Handshake: The 3 way handshake of SYN-> SYNACK-> ACK
+> Checksum validation: Incoming packets are validated by verifying the checksum, and correct chesksums are set in the outgoing packets
+> Timeout and Retransmission: If the server does not respond for a request within 60 seconds then the packet is re-sent. The program is terminated if the program does not respond for 180 seconds.
+> Congestion control: The program implements a basic congestion window which is incremented for every successfull ack else it is reset to 1.
+
+2)IP:
+> The client binds to the correct source IP address of the 'eth0' interface.
+> Checksum validation: Incoming packets are validated by verifying the checksum and correct chesksums are set in outgoing packets
+
+Challenges faced:
+1) Packing and Unpacking the packets using the pack() and unpack() of struct module.
+2) Handling the in order sequenced packets.
+3) Finding the IP address of the gateway.
+4) Forming Pseudo header to verify TCP checksum of the incoming packets.
+
+
+Ethernet Implementation:
+Method:
+1) Determined the gateway IP address by running 'route-n' command
+2) Framed ARP header to find the mac address of the gateway with target as 00:00:00:00:00:00
+3) Built the Ethernet header with destination mac address ff:ff:ff:ff:ff:ff so that the arp message is broadcasted.
+Challenges faced:
+1) Building the ARP header
+2) While sending packet with GET message total lenght in ip-header was set as length of ip header + length of tcp header. This was solved when length of data was included in total length
+
+Test cases:
+1) ./rawhttpget http://david.choffnes.com/classes/cs4700sp17/project4.php
+	Output: Downloads the project4.php file to the current directory
+2) ./rawhttpget http://david.choffnes.com/classes/cs4700sp17/2MB.log
+	Output: Downloads the 2MB.log file to the current directory
+3) ./rawhttpget http://david.choffnes.com/classes/cs4700sp17/10MB.log
+	Output: Downloads the 10MB.log file to the current directory
+4) ./rawhttpget http://david.choffnes.com/classes/cs4700sp17/50MB.log
+	Output: Downloads the 50MB.log file to the current directory
+5) ./rawhttpget
+	Output: Number of arguments insufficient for executing the program
+6) ./rawhttpget http://david.choffne
+	Output: URL doesn't exist
+7) ./rawhttpget http://
+	Output: The URL is invalid!!!
+8) ./rawhttpget david.choffnes.com/classes/cs4700sp17/project4.php
+	Output: Downloads the project4.php file to the current directory
+	

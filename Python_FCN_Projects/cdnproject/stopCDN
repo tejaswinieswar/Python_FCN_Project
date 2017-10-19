@@ -1,0 +1,38 @@
+#!/usr/bin/python
+import subprocess, sys
+
+replica_servers=[
+"ec2-52-90-80-45.compute-1.amazonaws.com",
+"ec2-54-183-23-203.us-west-1.compute.amazonaws.com",
+"ec2-54-70-111-57.us-west-2.compute.amazonaws.com",
+"ec2-52-215-87-82.eu-west-1.compute.amazonaws.com",
+"ec2-52-28-249-79.eu-central-1.compute.amazonaws.com",
+"ec2-54-169-10-54.ap-southeast-1.compute.amazonaws.com",
+"ec2-52-62-198-57.ap-southeast-2.compute.amazonaws.com",
+"ec2-52-192-64-163.ap-northeast-1.compute.amazonaws.com",
+"ec2-54-233-152-60.sa-east-1.compute.amazonaws.com"]
+
+port=0
+originserver=""
+nameserver=""
+user=""
+key=""
+dnsserver="cs5700cdnproject.ccs.neu.edu"
+
+if len(sys.argv) == 11 and sys.argv[1] == '-p' and sys.argv[3] == '-o' and sys.argv[5] == '-n' and sys.argv[7] == '-u' and sys.argv[9] == '-i' :
+	port = int(sys.argv[2])
+	originserver =str(sys.argv[4])
+	nameserver = str(sys.argv[6])
+	user = str(sys.argv[8])
+	key = str(sys.argv[10])
+else:
+	print ("Please try again with the right arguements")
+
+for x in replica_servers:
+	print(x)
+	stop_HTTP = subprocess.check_output("ssh -i "+key+" "+user+"@"+x+" 'pkill httpserver -u"+user+"'",shell=True)
+	print(stop_HTTP)
+print ("Http servers in the replicas are stopped")
+
+subprocess.check_output("ssh -i "+key+" "+user+"@"+dnsserver+" 'pkill dnsserver -u"+user+"'",shell=True)
+

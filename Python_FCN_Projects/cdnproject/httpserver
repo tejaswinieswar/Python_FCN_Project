@@ -1,0 +1,119 @@
+#! /usr/bin/python
+import sys,sqlite3,socket,zlib,urllib2,os, thread,subprocess
+
+main_sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+ip_sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+ip_sock.connect(("8.8.8.8", 80))
+self_ip= ip_sock.getsockname()[0]
+ip_sock.close()
+p=int(sys.argv[2])
+
+
+def ping_client(clientip, s_sock):
+	try:
+		socket.inet_aton(clientip)
+		status = subprocess.check_output('scamper -c "ping -c 1" -p 1 -i '+''.join(clientip), shell = True)
+                x = status.split("/")
+                print status
+                print x[4]
+                s_sock.send(x[4])
+	except:
+                print "error"
+        thread.exit()
+
+def RTT_check(server_sock):
+	try:
+		server_sock.bind((self_ip,55599))
+	except socket.error:
+		sys.exit()
+
+	server_sock.listen(1)
+	s_sock, addr = server_sock.accept()
+        print s_sock, addr
+        while True:        
+                client_ip = s_sock.recv(1024)
+        #        if addr[0] == "129.10.117.187":
+		if client_ip == "":
+			s_sock.close()
+			quit()
+                thread.start_new_thread(ping_client, (client_ip,s_sock))
+
+def myhttp(main_sock):
+        ip_sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
+        ip_sock.connect(("8.8.8.8", 80))
+        self_ip= ip_sock.getsockname()[0]
+        ip_sock.close()
+
+#print(self_ip)
+        #main_sock=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+#print self_ip,p
+
+        try:
+                if sys.argv[1] != '-p' or sys.argv[3] != '-o':
+                        print("Input arguments not in proper format ")
+                        exit()
+                else:
+                        if int(sys.argv[2])>= 40000 and int(sys.argv[2])<=65535:
+                            p=int(sys.argv[2])
+                            o=sys.argv[4]
+                        else:
+                            print "The port number should be in the range of 40000 and 65535"
+                            exit()
+        except IndexError:
+                print ("Input arguments not in proper format")
+                exit()
+
+        main_sock.bind((self_ip,p))
+
+        while True:
+                main_sock.listen(1)
+                a,b=main_sock.accept()
+                d= a.recv(4096)
+                #print (a,b)
+                #print (d)
+                #a.send("HO")
+                link1= d.split()[1]
+                #print link1
+                cache_db=sqlite3.connect('cache_memory.db')
+                pointer=cache_db.cursor()
+                pointer.execute('''CREATE TABLE IF NOT EXISTS DATA
+                                        (LINK text ,HITS int, HTML BLOB)''')
+
+                link=(link1,)
+                pointer.execute('SELECT LINK FROM DATA WHERE LINK = ?', link)
+                db_link=pointer.fetchone()
+                if db_link!=None:
+                        pointer.execute('SELECT HTML FROM DATA WHERE LINK = ?', link)
+                        data=pointer.fetchone()
+                        data = zlib.decompress(data[0])
+                        a.send('HTTP/1.1 200 OK\r\n\r\n'.encode() + data)
+                        pointer.execute('SELECT HITS FROM DATA WHERE LINK =?',link)
+                        hits = pointer.fetchone()
+                        hits =hits[0]+1
+                        pointer.execute('UPDATE DATA SET HITS=:hits WHERE LINK =:link' ,{"hits":hits,"link":link1})
+                else:
+                        origin_url= 'http://'+o+':8080/'+link1
+                        try:
+                                r=urllib2.urlopen(origin_url)
+                        except urllib2.HTTPError:
+                                a.send('HTTP/1.1 404 Not Found\r\n\r\n'.encode()+"<html><body><p>ERROR<br>404 WEBPAGE FOUND<br></p></body></html>")
+                                a.close()
+                                continue
+                        ori_data=r.read()
+                        a.send('HTTP/1.1 200 OK\r\n\r\n'.encode() + ori_data)
+                        db_desc=os.stat('cache_memory.db')
+                        size=db_desc.st_size
+                        if ((size + len(ori_data)) < 10000000):
+                                pointer.execute("INSERT INTO DATA(LINK,HITS,HTML) VALUES(?,?,?)",(link1,1,buffer(zlib.compress(ori_data))))
+                        else:
+                                pointer.execute("DELETE FROM DATA WHERE LINK = (SELECT LINK FROM DATA WHERE HITS = (SELECT MIN(HITS) FROM DATA))")
+                                pointer.execute("INSERT INTO DATA(LINK,HITS,HTML) VALUES(?,?,?)",(link1,1,buffer(zlib.compress(ori_data))))
+                cache_db.commit()
+                a.close()
+
+
+thread.start_new_thread(RTT_check,(server_sock,))
+myhttp(main_sock)	
+

@@ -1,0 +1,68 @@
+The project is intended to analyze the performance of TCP protocol under congestion.  To accomplish this we will be making extensive use of NS-2 simulator to perform 3 experiments that aims at analysing performance parameters of TCP variants like Tahoe, Reno, NewReno and Vegas under different load conditions and queuing algorithms.   Each experiment will provide us an opportunity to analyse the results and comprehend functionality of each congestion control protocol by making statistical analysis.
+
+                         N1                      N4
+                           \                    /
+                            \                  /
+                             N2--------------N3
+                            /                  \
+                           /                    \
+                         N5                      N6
+
+                Fig: Network Topology used for the Experiments.
+
+Experiment 1: TCP performance under congestion.
+High-level Approach:
+1) This experiment would require setting up the above network topology that includes 6 nodes with a bandwidth of 10 Mbps links between them.
+2) This setup would be used to analyse the performance of the above enlisted TCP variants under congestive conditions
+
+Methodology:
+1) The experiment is performed by setting parameters like packet size and rate, start-times of TCP stream,CBR and queing buffer size and the experiment is repeatd
+ multiple times by varying these and observing the performance of TCP variants.
+2) We will be parsing the trace files obtained by the above experiment using a Python script and the Python script is also used to deduce throughput, latency and packet drop-rate of the TCP streams.
+3) Graphs will be plotted for throughput, latency, packet loss on y-axis against bandwidth(CBR) on x-axis and for better statistical understanding and analysis as to which TCP variant performs the best we will be performing the T-test analysis.
+
+Steps of execution:
+1. Tcl file name: exp1_copy.tcl.  The trace files have to be generated from the TCL file by passing 2 parameters (first parameter being the TCP variant and the second parameter being the cbr rate)in the form
+       /course/cs4700f12/ns-allinone-2.35/bin/ns exp1_copy.tcl Reno 5.6
+   2. run the parser_copy.py by sending the same parameters as above in the following format:
+	python parser_copy.py Reno 5.6
+
+Experiment 2: Fairness between TCP variants.
+High-level Approach:
+1) This experiment we would consider 3 flows one of CBR and two of TCP type from (N2,N3) (N1,N4), (N5,N6) respectively.
+2) The idea behind this experiment is to explore the different variants of TCP that are highly likely to utilize more bandwidth than their peers.
+
+Methodology:
+1) We will do a pair wise comparison of throughput latency and packet loss for each pair of the TCP variant.  This would give us an insight of the dominant TCP variant if any under certain circumstances.
+2) This will also help in identifying scenarios to have fairness among TCP variants.
+3) The concept of throughput analysis will help us in prioritizing the TCP variants in case of limited bandwidth availability.
+4) Graphs will be plotted for throughput of flow-1 against throughput of flow-2 and T-test analysis is performed again.
+
+Steps of execution:
+1. Run the bash script “e2”. In the e2 file we have defined the pair of TCP variants which we will be running. ‘e2’ script will generate all trace files from CBR ranging from 0->10.
+2. The script also will call the parser_copy_exp2.py file to do the necessary calculations.
+3. Repeat the process by changing the TCP variants pair in the script “e2”
+         
+Experiment 3: Influence of Queuing
+High-level Approach:
+1)This experiment will help us in analysing the performance of 2 TCP variants namely TCP Reno and Sack which inculcates the discipline of Droptail and RED (Random Early Drop) to demonstrate packet treatment within a queue.
+2) The network topology would remain the same with TCP flow from (N1 -> N4) and CBR from (N5 -> N6)
+3) First the TCP flow is started and once it reaches steady state CBR flow would be introduced with the underlying assumption of constant bandwidth i.e CBR will remain constant.
+
+Methodology:
+1) With the start-time and bandwidth being fixed we will analyse the TCP Reno and Sack when exposed to Droptail and RED.
+2) This will help us in understanding the influences of queuing disciplines implemented by multiple TCP variants.
+3) Based on the algorithm we will consider parameters such as drop packets, congestion window, transmission time, throughput, and latency to test in the scenarios of
+change in packet size/rate and buffer size.
+4) The graph is plotted for time on x-axis and throughput on y-axis.
+5) To make data more deducible we will exploit the utilities of standard deviations along with mean and median and performing the T-test analysis to understand the statistical difference.
+
+Steps of execution:
+1. Run the tcl file along with the following parameters in order: Variant name, queueing discipline, start time of ftp, start time of cbr, end time of cbr, end time of tcp and end time of ns.
+	For Reno:
+		/course/cs4700f12/ns-allinone-2.35/bin/ns exp3tcl TCP/Reno DropTail 0.0 5.0 25.0 30.0 30.0
+	For Sack:
+		/course/cs4700f12/ns-allinone-2.35/bin/ns exp3tcl TCP/Sack DropTail 0.0 5.0 25.0 30.0 30.0
+2.  The python file python_exp3.py has to be run.
+3. Repeat trace file generation in step1 by changing DropTail to RED and run the python file again.
+

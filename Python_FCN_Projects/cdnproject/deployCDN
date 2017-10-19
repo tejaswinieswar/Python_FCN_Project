@@ -1,0 +1,26 @@
+#! /usr/bin/python
+
+import subprocess,sys
+
+replicas=["ec2-52-90-80-45.compute-1.amazonaws.com","ec2-54-183-23-203.us-west-1.compute.amazonaws.com","ec2-54-70-111-57.us-west-2.compute.amazonaws.com","ec2-52-215-87-82.eu-west-1.compute.amazonaws.com","ec2-52-28-249-79.eu-central-1.compute.amazonaws.com",
+"ec2-54-169-10-54.ap-southeast-1.compute.amazonaws.com","ec2-52-62-198-57.ap-southeast-2.compute.amazonaws.com","ec2-52-192-64-163.ap-northeast-1.compute.amazonaws.com","ec2-54-233-152-60.sa-east-1.compute.amazonaws.com"]
+
+if len(sys.argv) != 11 :
+	print("Arguments Incorrect!!!Please enter right arguments")
+else:
+	if sys.argv[1]=='-p' and sys.argv[3]=='-o' and sys.argv[5]=='-n' and sys.argv[7]=='-u' and sys.argv[9]=='-i':
+            username = str(sys.argv[8])
+            keyfile = str(sys.argv[10])
+	else:
+            print ("Arguments Incorrect!!!Please enter right arguments")
+
+for each in replicas:
+    Scp_cmd = subprocess.Popen("scp -i" +keyfile+ " httpserver " +username+ "@" +each+ ":~",shell= True,stdout=subprocess.PIPE)
+    copy_cmd = Scp_cmd.communicate()[0]
+    login_cmd = subprocess.Popen("ssh -i"+keyfile+" "+username+ "@" +each+" chmod 755 httpserver",shell= True,stdout=subprocess.PIPE)
+    Connect_check = login_cmd.communicate()[0]
+
+DNS_cmd = subprocess.Popen("scp -i " +keyfile+ " dnsserver " +username+ "@" +"cs5700cdnproject.ccs.neu.edu"+":~",shell=True,stdout=subprocess.PIPE)
+DNS_copy = DNS_cmd.communicate()[0]
+Dns_check = subprocess.Popen("ssh -i "+keyfile+" "+username+"@"+"cs5700cdnproject.ccs.neu.edu"+" chmod 755 dnsserver",shell=True,stdout=subprocess.PIPE)
+DNS_login = Dns_check.communicate()[0]

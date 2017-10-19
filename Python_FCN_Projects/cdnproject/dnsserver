@@ -1,0 +1,227 @@
+#! /usr/bin/python
+import socket, threading, thread, time, random, struct, sys
+
+global Port_no
+CDN_name = 'cs5700cdn.example.com'
+global EC2_SERVERS
+EC2_SERVERS= ("54.70.111.57","52.215.87.82","52.28.249.79","54.169.10.54","52.62.198.57","52.192.64.163","54.233.152.60","52.90.80.45","54.183.23.203")
+global latency
+latency={}
+
+global t_sock
+t_sock = list()
+
+#Creating sockets for each EC2 servers
+try:
+	sock_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_1.connect((EC2_SERVERS[0],55599))
+	t_sock.append((sock_1, EC2_SERVERS[0]))
+	print("Connection done")	
+except:
+	print "server down"
+try:
+	sock_2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_2.connect((EC2_SERVERS[1],55599))
+	t_sock.append((sock_2,EC2_SERVERS[1]))
+	print("2")
+except:
+	
+	print "server down"
+	
+try:	
+	sock_3 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_3.connect((EC2_SERVERS[2],55599))
+	t_sock.append((sock_3,EC2_SERVERS[2]))
+	print("3")
+except:
+	print "server down"
+
+try:
+	sock_4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_4.connect((EC2_SERVERS[3],55599))
+	t_sock.append((sock_4,EC2_SERVERS[3]))
+	print("4")
+except:
+	print "server down"
+	
+try:	
+	sock_5 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_5.connect((EC2_SERVERS[4],55599))
+	t_sock.append((sock_5,EC2_SERVERS[4]))
+	print("5")
+except:
+	print "server down"
+try:
+	sock_6 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_6.connect((EC2_SERVERS[5],55599))
+	t_sock.append((sock_6,EC2_SERVERS[5]))
+	print("6")
+except:
+	print "server down"
+try:	
+	sock_7 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_7.connect((EC2_SERVERS[6],55599))
+	t_sock.append((sock_7,EC2_SERVERS[6]))
+	print("7")
+except:
+	print "server down"
+
+try:	
+	sock_8 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_8.connect((EC2_SERVERS[7],55599))
+	t_sock.append((sock_8,EC2_SERVERS[7]))
+	print("8")
+except:
+	print "server down"
+
+try:	
+	sock_9 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock_9.connect((EC2_SERVERS[8],55599))
+	t_sock.append((sock_9,EC2_SERVERS[8]))
+	print("9")
+except:
+	print "server down"	
+##################################################################################################################
+
+# Function to start DNS server which take's source ip address as the arguments which is obtained above.
+def start_dns_server(dns_ip):
+	print dns_ip, Port_no
+	global server_sock
+	# Socket creation
+	server_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+        	server_sock.bind((dns_ip, Port_no))
+	except:
+                print "Could not bind"
+                sys.exit()
+	while True:
+		data = server_sock.recvfrom(1024)
+	# Start a new thread to unpack the data and find the best ip address for the client
+		thread.start_new_thread(data_unpack,(data,server_sock)) 
+	
+
+##################################################################################################################
+def data_unpack(data, server_sock):
+	print "data unpack"
+	cl_ip = data[1][0] # client IP
+	print cl_ip
+	cl_port = data[1][1] # Client Port
+	query = data[0]
+	dns_query_headers = struct.unpack('!HHHHHH',query[0:12]) # Unpack data
+        ID = dns_query_headers[0]
+	flags = dns_query_headers[1]
+	no_of_questions = dns_query_headers[2] 
+	no_of_que_answered = 1
+	answers = None
+	headers = None	
+	field=query[12:]
+	domain_name = ""
+	length_field = struct.unpack('!B',field[0])	
+	y = 1
+# Extracting domain name
+	while(length_field[0] != 0):
+		x = y + length_field[0]
+		unpack_arg = str(length_field[0]) + 's'
+		if not domain_name:
+			domain_name = struct.unpack(unpack_arg,field[y:x])[0]
+		else:
+			domain_name = domain_name + '.' + struct.unpack(unpack_arg,field[y:x])[0]
+		y = x+1
+		length_field = struct.unpack('!B',field[x])
+		#domain_name,x+5,struct.unpack('!H',field[x+1:x+3])[0],struct.unpack('!H',field[x+3:x+5])[0]
+	print domain_name
+	if CDN_name != domain_name:
+		print "END"		
+		thread.exit()
+	end = x+5
+	qtype = struct.unpack('!H',field[x+1:x+3])[0]
+	qclass = struct.unpack('!H',field[x+3:x+5])[0]
+	if latency.has_key(cl_ip):
+			best_ec2_ip=latency[cl_ip].split(":")
+			best_ip = best_ec2_ip[0]	
+	else :
+			best_ip = active_measurement(cl_ip)
+			
+	answer = data_pack(best_ip, query[12:12+end],qtype,qclass)
+	header = query[0:2] + "\x81\x80" + struct.pack('!HHHH', no_of_questions, no_of_que_answered, 0, 0)
+	final_ans = header+answer
+	server_sock.sendto(final_ans,(cl_ip,cl_port))
+	thread.exit()
+
+##################################################################################################################
+def active_measurement(client_ip):
+	
+	print "Active Measure"
+	for i in range(0,len(t_sock)) :
+		print i
+		#start new thread to measure rtt from each replica server
+		thread.start_new_thread(measure_rtt,(t_sock[i][1],client_ip, t_sock[i][0]))
+		time.sleep(0.2)
+	time.sleep(6)
+	print "Latency:",latency
+	best_ec2_ip=latency[client_ip].split(":")
+	
+	return best_ec2_ip[0]
+
+##################################################################################################################
+def measure_rtt(ec2_ip,client_ip, sock) :	
+	global rtt	
+	print("in measure")
+	print(client_ip)
+	sock.send(client_ip)
+	rtt=sock.recv(1024)
+	print(rtt)
+        #selecting the server with least rtt
+	if not latency.has_key(client_ip):
+		latency[client_ip] = ec2_ip+':'+ rtt
+		best_ec2= ec2_ip
+		print "FIIRST TIME",best_ec2
+		best_rtt = rtt
+		print best_rtt
+	else:
+		#print best_rtt
+		best_rtt = latency[client_ip].split(":")[1]
+		if best_rtt > rtt:
+			del latency[client_ip]
+			latency[client_ip] = ec2_ip+':'+ rtt
+			best_ec2= ec2_ip
+			best_rtt = rtt
+	thread.exit()
+			 
+##################################################################################################################	
+def data_pack(ec2_ip, query, qtype, qclass): 
+	pointer_field = "\xc0\x0c"
+	ttl = 2
+	length = 4
+	octets = ec2_ip.split('.')						
+	pack_arg = '!HHLHBBBB'
+	return query + pointer_field + struct.pack(pack_arg, qtype, qclass, ttl, length,int(octets[0]),int(octets[1]),int(octets[2]),int(octets[3])) 
+
+##################################################################################################################
+try:
+	# parse the input arguments.
+	if( len(sys.argv)==5 and sys.argv[1] == '-p' and sys.argv[3] == '-n' and int(sys.argv[2])>= 40000 and int(sys.argv[2])<=65535):
+                	Port_no = int(sys.argv[2])
+	        	CDN_name = sys.argv[4]
+	else:
+		print("Input the arguments in proper format")
+		sys.exit()
+
+	source_ip_addr = "129.10.117.187"
+	start_dns_server(source_ip_addr)
+
+except KeyboardInterrupt:
+	print "Closing Socket"
+	server_sock.close()
+	#server_sock.close()
+	sock_1.close()
+	sock_2.close()
+	sock_3.close()
+	sock_4.close()
+	sock_5.close()
+	sock_6.close()
+	sock_7.close()
+	sock_8.close()
+	sock_9.close()
+	sys.exit()
+	

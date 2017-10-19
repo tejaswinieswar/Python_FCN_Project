@@ -1,0 +1,63 @@
+Project 5: Roll Your Own CDN
+The program requires to build a CDN which redirects the client's web requests to the nearby replica servers which reduces the latency in which the client was served.
+
+High Level Approach:
+Steps:
+> The client queries the DNS server.
+> The DNS decides the fastest replica server to which the client's request should be hit.
+> Once the replica server decision has been made the client hits the replica server with the request.
+> Replica server checks if the data is present in the cache then the web page is provided from the cache else it is sent to the origin server.
+
+Steps to execute program:
+>Format to perform DIG:
+dig @[your DNS server IP] -p [your port] -n [URL]		
+Example: dig @192.138.5.36 -p 50000 -n cs5700cdn.example.com
+
+> Format to perform WGET:
+
+wget http://[your server name]:[your port name]/[path to content] 	
+Example: wget 192.168.1.10:50000/index.html
+
+> Format to run scripts:
+./[deploy|run|stop]CDN -p <port> -o <origin> -n <name> -u <username> -i <keyfile>
+Example:./deployCDN -p 50000 -o 54.88.98.7 -n cs5700cdn.example.com -u tejaswini -i ~/.ssh/id_rsa
+
+REPORT:
+
+Abstract:
+	Content Delivery Network(CDN) is a distributed network which aims at delivering content to the client with highest performance. CDN implements this by deployingmultiple replica servers.  Requests are re-directed to replica servers based on various criteria such as geographical closeness, network congestion and based on how    busy the replica servers are.  The replica servers maintain the most content in the cache which are in great demand. This feature drastically decreases the response    time of the requested content. In the current project we have implemented a CDN by deploying the DNS and HTTP server on 9 globally distributed replica servers.
+	
+Overview of Process:
+
+1) The client requests the DNS server with the desired URL.
+2) The DNS server unpacks the request and extracts the URL. It also pings all the replica server and finds out the best replica server for the client. This is accomplished by 	performing active measurements of the network using Scamper.
+3) The DNS server responds back with the IP address of the optimal replica server.
+4) The client sends the request to the intended replica server by performing a WGET command.
+
+Methodology:
+
+1) DNS:
+	> Developed a multi threaded DNS server which accepts DNS queries from clients.
+	> At the start of the code the DNS server establishes the connections with all 9 replica servers using TCP sockets on port. This connection is to send the requesting client's IP address to all the replica servers for active measurements.
+	> After the HTTP server responds with the RTT's the DNS server picks the server with the lowest RTT and forwards it to the client.
+	> The server also caches incoming IP address of the requesting client and maps it with the lowest RTT replica server. This way there is efficient usage of time whenever a client requests DNS query multiple times by responding from the cache.
+	
+2) HTTP:
+	> The HTTP code determines the IP of the local system by setting up a UDP socket and calling getsockname() inbuilt function.
+	> The server accepts the connection from the client and parses the request and extracts the URL.
+	> It checks the local db cache if the web page is present.
+	> When the file is absent in the cache the replica server requests the origin server. The data is stored in the cache if the size of the cache is less than 10MB. When the size is greater than 10MB then the webpage with least number of hits is delted from the database.
+	> sqlite module has been used to perform the database operations. To efficiently use the cache the webpage has been compressed and stored in the database.
+	
+3) Active Measurement: 
+	> Scamper is a internet measurement method which probes destination by pinging the and estimating the RTT.
+
+Conclusion:
+-CDN is a great technology which aids in delivering content with high performance.
+-Scamper is an optimum way to perform active mesaurement of the network.
+-If we would have got some more time then we would have further figured out additional ways to optimize the code in order to minimize the time taken to deliver the content.
+
+Challenges faced:
+1) Perfoming Active Measurement using Scamper.
+2) As cache size was limited to 10MB, it was difficult to manage the database. This was overcome by compresssing the file and storing it.
+

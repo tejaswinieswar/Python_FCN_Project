@@ -1,0 +1,10 @@
+#!/bin/bash
+#j=1
+cbr_rate="1 2 3 4 5 5.5 6 6.5 7 7.5 8 8.5 9 9.1 9.2 9.3 9.4 9.5 9.6 9.7 9.8 9.9 10"
+#test_cases="1 2"
+#for j in $test_cases;do
+for i in $cbr_rate;do 
+		/course/cs4700f12/ns-allinone-2.35/bin/ns exp2_copy.tcl Reno Reno $i 
+		python parser_copy_exp2.py Reno Reno $i >> Out_NR.txt
+done
+#done

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+#echo $1
+
+while getopts "u:i:p::o::n::" opt; do
+  case $opt in
+  u)
+      username=$OPTARG
+      ;;
+  i)
+      keyfile=$OPTARG
+      ;;
+  p)
+      port=$OPTARG
+      ;;
+  o)
+      origin=$OPTARG
+      ;;
+  n)
+      CDN=$OPTARG
+      ;;
+  ?)
+      echo "unkown parameter"
+      ;;
+  esac
+done
+
+
+echo "Servers Starting Up, Please HOLD ON"
+
+replicaservers=(ec2-52-90-80-45.compute-1.amazonaws.com
+ec2-54-183-23-203.us-west-1.compute.amazonaws.com
+ec2-54-70-111-57.us-west-2.compute.amazonaws.com
+ec2-52-215-87-82.eu-west-1.compute.amazonaws.com
+ec2-52-28-249-79.eu-central-1.compute.amazonaws.com
+ec2-54-169-10-54.ap-southeast-1.compute.amazonaws.com
+ec2-52-62-198-57.ap-southeast-2.compute.amazonaws.com
+ec2-52-192-64-163.ap-northeast-1.compute.amazonaws.com
+ec2-54-233-152-60.sa-east-1.compute.amazonaws.com
+)
+
+dnsserver="cs5700cdnproject.ccs.neu.edu"
+
+
+for replica in "${replicaservers[@]}"
+do
+    ssh -i $keyfile -n -f $username@$replica "./httpserver -p $port -o $origin"
+
+done
+
+echo $CDN
+echo "HTTP Servers are UP at all Locations. Starting up the DNS Server"
+
+ssh -i $keyfile -n -f $username@$dnsserver "./dnsserver -p $port -n $CDN"
+
+echo "DNS Server is UP and everything is Ready for Testing"

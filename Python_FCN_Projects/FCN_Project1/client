@@ -1,0 +1,8 @@
+#!/bin/bash
+if [[ $1 = "-s" || $3 = "-s" ]]; then
+	chmod 777 client1.py
+	python client1.py $*
+else 
+	chmod 777 client.py
+	python client.py $*
+fi
